@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunset Ocean Snake</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #2d3748; /* Slightly lighter dark background for the container */
+            border-radius: 1.5rem; /* More rounded corners */
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+            max-width: 90vw; /* Max width for responsiveness */
+            width: 500px; /* Base width */
+            box-sizing: border-box;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #ffdd77, #ff9933, #336699, #1a4a7a); /* Sunset to ocean gradient */
+            border-radius: 1rem;
+            border: 4px solid #4a5568; /* Border for the canvas */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+            display: block;
+            width: 100%; /* Fluid width */
+            height: auto; /* Maintain aspect ratio based on JS */
+            max-width: 400px; /* Max width for the canvas itself */
+            max-height: 400px; /* Max height for the canvas itself */
+        }
+        .score-board {
+            color: #e2e8f0; /* Light text color */
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .game-button {
+            background: linear-gradient(to right, #f6ad55, #ed8936); /* Orange gradient */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* Pill shape */
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease-in-out;
+            margin-top: 1rem;
+        }
+        .game-button:hover {
+            background: linear-gradient(to right, #ed8936, #dd6b20);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+        .game-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Message Box Styling */
+        .message-box-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .message-box-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .message-box-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            max-width: 80vw;
+            width: 400px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .message-box-overlay.show .message-box-content {
+            transform: scale(1);
+        }
+        .message-box-content h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #f6ad55;
+        }
+        .message-box-content p {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .message-box-content button {
+            background: linear-gradient(to right, #63b3ed, #4299e1); /* Blue gradient for message box button */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease-in-out;
+        }
+        .message-box-content button:hover {
+            background: linear-gradient(to right, #4299e1, #3182ce);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="game-container">
+        <h1 class="text-3xl font-bold text-orange-400 mb-4 text-shadow-lg">Sunset Ocean Snake</h1>
+        <div class="score-board mb-4">Score: <span id="score">0</span></div>
+        <canvas id="gameCanvas"></canvas>
+        <button id="startGameBtn" class="game-button">Start Game</button>
+    </div>
+
+    <div id="messageBoxOverlay" class="message-box-overlay">
+        <div class="message-box-content">
+            <h2 id="messageBoxTitle"></h2>
+            <p id="messageBoxText"></p>
+            <button id="messageBoxButton"></button>
+        </div>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas dimensions
+        const gridSize = 20; // Size of each snake segment and food item
+        let canvasWidth = 400;
+        let canvasHeight = 400;
+
+        // Adjust canvas size based on screen width
+        const setCanvasSize = () => {
+            const container = document.querySelector('.game-container');
+            const maxAllowedWidth = Math.min(window.innerWidth * 0.8, 400); // 80% of window width, max 400px
+            canvasWidth = Math.floor(maxAllowedWidth / gridSize) * gridSize;
+            canvasHeight = Math.floor(maxAllowedWidth / gridSize) * gridSize; // Keep it square
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+        };
+
+        // Initial canvas size setup
+        setCanvasSize();
+        // Update canvas size on window resize
+        window.addEventListener('resize', setCanvasSize);
+
+        // Game variables
+        let snake;
+        let food;
+        let dx, dy; // Direction x, y
+        let score;
+        let gameInterval;
+        let gameSpeed = 150; // Milliseconds per frame
+        let isGameOver;
+        let gameStarted = false;
+
+        // Get DOM elements
+        const scoreDisplay = document.getElementById('score');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const messageBoxOverlay = document.getElementById('messageBoxOverlay');
+        const messageBoxTitle = document.getElementById('messageBoxTitle');
+        const messageBoxText = document.getElementById('messageBoxText');
+        const messageBoxButton = document.getElementById('messageBoxButton');
+
+        /**
+         * Displays a custom message box.
+         * @param {string} title - The title of the message box.
+         * @param {string} message - The message content.
+         * @param {string} buttonText - Text for the button.
+         * @param {function} callback - Function to execute when the button is clicked.
+         */
+        function showMessageBox(title, message, buttonText, callback) {
+            messageBoxTitle.textContent = title;
+            messageBoxText.textContent = message;
+            messageBoxButton.textContent = buttonText;
+            messageBoxButton.onclick = () => {
+                messageBoxOverlay.classList.remove('show');
+                if (callback) callback();
+            };
+            messageBoxOverlay.classList.add('show');
+        }
+
+        /**
+         * Initializes the game state.
+         */
+        function initGame() {
+            snake = [
+                { x: 10 * gridSize, y: 10 * gridSize },
+                { x: 9 * gridSize, y: 10 * gridSize },
+                { x: 8 * gridSize, y: 10 * gridSize }
+            ];
+            dx = gridSize; // Initial direction: right
+            dy = 0;
+            score = 0;
+            scoreDisplay.textContent = score;
+            isGameOver = false;
+            generateFood();
+            gameSpeed = 150; // Reset speed
+            if (gameInterval) clearInterval(gameInterval); // Clear any existing interval
+            startGameBtn.textContent = "Restart Game";
+            gameStarted = true;
+        }
+
+        /**
+         * Generates new food at a random position on the canvas, ensuring it's not on the snake.
+         */
+        function generateFood() {
+            let foodX, foodY;
+            let collisionWithSnake;
+            do {
+                foodX = Math.floor(Math.random() * (canvasWidth / gridSize)) * gridSize;
+                foodY = Math.floor(Math.random() * (canvasHeight / gridSize)) * gridSize;
+                collisionWithSnake = snake.some(segment => segment.x === foodX && segment.y === foodY);
+            } while (collisionWithSnake);
+            food = { x: foodX, y: foodY };
+        }
+
+        /**
+         * Draws the game elements on the canvas.
+         */
+        function draw() {
+            // Clear canvas for next frame
+            // The background gradient is set in CSS, so we don't need to redraw it every frame here.
+            // If we were drawing a dynamic background, we'd do it here.
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw food (Sun/Fish)
+            ctx.fillStyle = '#ffcc00'; // Bright yellow for sun
+            ctx.strokeStyle = '#ff9900'; // Orange border
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(food.x + gridSize / 2, food.y + gridSize / 2, gridSize / 2 * 0.8, 0, Math.PI * 2); // Circle for sun
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw snake (Ocean waves/boats)
+            snake.forEach((segment, index) => {
+                // Gradient for snake segments to mimic ocean waves
+                const gradient = ctx.createLinearGradient(segment.x, segment.y, segment.x + gridSize, segment.y + gridSize);
+                if (index === 0) {
+                    // Head of the snake (a bit brighter/distinct)
+                    gradient.addColorStop(0, '#4299e1'); // Brighter blue
+                    gradient.addColorStop(1, '#2b6cb0'); // Darker blue
+                } else {
+                    gradient.addColorStop(0, '#336699'); // Ocean blue
+                    gradient.addColorStop(1, '#1a4a7a'); // Darker ocean blue
+                }
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = '#e2e8f0'; // Light border for visibility
+                ctx.lineWidth = 1;
+
+                // Draw rounded rectangles for snake segments
+                const radius = gridSize / 4; // For rounded corners
+                ctx.beginPath();
+                ctx.moveTo(segment.x + radius, segment.y);
+                ctx.lineTo(segment.x + gridSize - radius, segment.y);
+                ctx.arcTo(segment.x + gridSize, segment.y, segment.x + gridSize, segment.y + radius, radius);
+                ctx.lineTo(segment.x + gridSize, segment.y + gridSize - radius);
+                ctx.arcTo(segment.x + gridSize, segment.y + gridSize, segment.x + gridSize - radius, segment.y + gridSize, radius);
+                ctx.lineTo(segment.x + radius, segment.y + gridSize);
+                ctx.arcTo(segment.x, segment.y + gridSize, segment.x, segment.y + gridSize - radius, radius);
+                ctx.lineTo(segment.x, segment.y + radius);
+                ctx.arcTo(segment.x, segment.y, segment.x + radius, segment.y, radius);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            });
+        }
+
+        /**
+         * Updates the game state (snake movement, collisions, etc.).
+         */
+        function updateGame() {
+            if (isGameOver) return;
+
+            // Move snake
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Check for wall collision
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                endGame();
+                return;
+            }
+
+            // Check for self-collision
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    endGame();
+                    return;
+                }
+            }
+
+            snake.unshift(head); // Add new head
+
+            // Check for food consumption
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreDisplay.textContent = score;
+                generateFood();
+                // Increase speed slightly
+                if (gameSpeed > 50) { // Don't go faster than 50ms
+                    gameSpeed -= 5;
+                }
+                clearInterval(gameInterval);
+                gameInterval = setInterval(gameLoop, gameSpeed);
+            } else {
+                snake.pop(); // Remove tail if no food eaten
+            }
+
+            draw();
+        }
+
+        /**
+         * The main game loop.
+         */
+        function gameLoop() {
+            updateGame();
+        }
+
+        /**
+         * Ends the game and displays a message.
+         */
+        function endGame() {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            showMessageBox("Game Over!", `You scored ${score} points.`, "Play Again", () => {
+                initGame();
+                gameInterval = setInterval(gameLoop, gameSpeed);
+            });
+        }
+
+        /**
+         * Handles keyboard input for changing snake direction.
+         * @param {KeyboardEvent} event - The keyboard event.
+         */
+        function changeDirection(event) {
+            const keyPressed = event.keyCode;
+            const LEFT_KEY = 37;
+            const UP_KEY = 38;
+            const RIGHT_KEY = 39;
+            const DOWN_KEY = 40;
+
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -gridSize;
+                dy = 0;
+            } else if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -gridSize;
+            } else if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = gridSize;
+                dy = 0;
+            } else if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = gridSize;
+            }
+        }
+
+        /**
+         * Handles touch input for changing snake direction.
+         * @param {TouchEvent} event - The touch event.
+         */
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        function handleTouchStart(event) {
+            event.preventDefault(); // Prevent scrolling
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        }
+
+        function handleTouchEnd(event) {
+            event.preventDefault(); // Prevent scrolling
+            const touchEndX = event.changedTouches[0].clientX;
+            const touchEndY = event.changedTouches[0].clientY;
+
+            const dxTouch = touchEndX - touchStartX;
+            const dyTouch = touchEndY - touchStartY;
+
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (Math.abs(dxTouch) > Math.abs(dyTouch)) { // Horizontal swipe
+                if (dxTouch > 0 && !goingLeft) { // Swiped right
+                    dx = gridSize;
+                    dy = 0;
+                } else if (dxTouch < 0 && !goingRight) { // Swiped left
+                    dx = -gridSize;
+                    dy = 0;
+                }
+            } else { // Vertical swipe
+                if (dyTouch > 0 && !goingUp) { // Swiped down
+                    dx = 0;
+                    dy = gridSize;
+                } else if (dyTouch < 0 && !goingDown) { // Swiped up
+                    dx = 0;
+                    dy = -gridSize;
+                }
+            }
+        }
+
+
+        // Event Listeners
+        document.addEventListener('keydown', changeDirection);
+        canvas.addEventListener('touchstart', handleTouchStart, false);
+        canvas.addEventListener('touchend', handleTouchEnd, false);
+
+        startGameBtn.addEventListener('click', () => {
+            if (!gameStarted) {
+                initGame();
+                gameInterval = setInterval(gameLoop, gameSpeed);
+            } else {
+                // If game is already running, this button acts as a restart
+                endGame(); // This will show the game over message and then offer to play again
+            }
+        });
+
+        // Initial draw when the page loads
+        window.onload = function() {
+            setCanvasSize(); // Ensure canvas size is set correctly on load
+            initGame(); // Initialize game state
+            draw(); // Draw initial state
+            showMessageBox("Welcome to Sunset Ocean Snake!", "Guide your boat-snake to eat the suns. Don't hit the edges or yourself!", "Start Game", () => {
+                gameInterval = setInterval(gameLoop, gameSpeed);
+            });
+        };
+
+    </script>
+</body>
+</html>
